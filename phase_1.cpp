@@ -219,6 +219,149 @@ void tokenize(const string &line, TokenBuffer &buf){
 
 }// end of tokenizer
 
+enum CommandType{
+    CMD_UNKNOWN,
+    CMD_CREATE_TABLE,
+};
+
+class SqlCommand{
+    string text;
+    CommandType type;
+
+public:
+    static const int MAX_LEN = 511;
+
+    SqlCommand(){
+        text = "";
+        type = CMD_UNKNOWN;
+    }
+
+    SqlCommand(const string &t, CommandType tp = CMD_UNKNOWN){
+        text = t;
+        type = tp;
+    }
+
+    SqlCommand(const SqlCommand &other){
+        text = other.text;
+        type = other.type;
+    }
+
+    SqlCommand& operator =(const SqlCommand &other){
+        if(this != &other){
+            text = other.text;
+            type = other.type;
+        }
+        return *this;
+    }
+
+    string getText() const {
+         return text;
+     }
+
+    CommandType getType() const{
+        return type;
+     } 
+
+    void setType(CommandType t){
+        type = t;
+    }
+
+    friend ostream& operator<<(ostream &out, const SqlCommand &c){
+        out << "[CMD type = " << c.type << "]" << c.text;
+        return out;
+    }
+
+}; // end of SqlCommand class
+
+enum ColType{
+    CT_TEXT,
+    CT_INTEGER,
+    CT_FLOAT,
+    CT_UNKNOWN
+};
+
+class Column{
+public:
+    static const int MAX_NAME = 32;
+
+private:
+    string name;
+    ColType type;
+    int size;
+    string defVal;
+
+public:
+    Column(){
+        name = "";
+        type = CT_UNKNOWN;
+        size = 0;
+        defVal = "";
+    }
+
+    Column(const string &n, ColType t, int s = 0, const string &dv = ""){
+        name = n;
+        type = t;
+        size = s;
+        defVal = dv;
+    }
+
+    Column(const Column &c){
+        name = c.name;
+        type = c.type;
+        size = c.size;
+        defVal = c.defVal;
+    }
+
+    Column& operator=(const Column &c){
+        if(this != &c){
+            name = c.name;
+            type = c.type;
+            size = c.size;
+            defVal = c.defVal;
+        }
+        return *this;
+    }
+
+    string getName() const{
+        return name;
+    }
+
+    ColType getType() const {
+        return type;
+    }
+
+    int getSize() const {
+        return size;
+    }
+
+    string getDefault() const {
+        return defVal;
+    }
+
+    bool operator==(const Column &other) const{
+        return equalIgnoreCase(name, other.name);
+    }
+
+    friend ostream & operator<<(ostream &out, const Column &c){
+        out << c.name << ":";
+        if(c.type == CT_TEXT) out << "TEXT(" << c.size << ")";
+        if(c.type == CT_INTEGER) out << "INTEGER";
+        if(c.type == CT_FLOAT) out << "FLOAT";
+        if(!c.defVal.empty()) out << "Default Value = " << c.defVal;
+
+        return out;
+    }
+};// end of Column class
+
+class Table{
+    string name;
+    Column *columns;
+    int colCount;
+    int colCap;
+
+public:
+    static int nrTabele
+}; //end of class table
 int main(){
     return 0;
 }
