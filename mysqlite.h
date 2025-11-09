@@ -98,3 +98,50 @@ public:
     friend ostream & operator<<(ostream &out, const Column &c);
 };
 
+class Table{
+    string name;
+    Column *columns;
+    int colCount;
+    int colCap;
+
+public:
+    static int nrTabele;
+
+    Table();
+    Table(const string &n);
+    Table(const Table &t);
+    Table& operator=(const Table &t);
+    ~Table();
+
+    string getName() const;
+    int getColCount() const;
+    Column getColumn(int i) const;
+
+    void addColumn(const Column &c);
+
+    friend ostream& operator<<(ostream &out, const Table &t);
+};
+
+class Index{
+    string name;
+    string table;
+    string column;
+
+public:
+    Index();
+    Index(const string &n, const string &t, const string &c);
+};
+
+class Database{
+    Table *tables;
+    int tableCount;
+    int tableCap;
+
+public:
+    Database();
+    ~Database;
+
+    int findTable(const string &name) const;
+    bool createTable(const Table &t);
+    Table* getTable(const string &name);
+};
