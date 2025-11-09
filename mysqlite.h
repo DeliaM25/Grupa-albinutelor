@@ -97,3 +97,4 @@ public:
 
     friend ostream & operator<<(ostream &out, const Column &c);
 };
+

@@ -360,8 +360,176 @@ class Table{
     int colCap;
 
 public:
-    static int nrTabele
+    static int nrTabele;
+
+    Table(){
+        name = "";
+        columns = NULL;
+        colCount = 0;
+        colCap = 0;
+        nrTabele++;
+    }
+
+    Table(const string &n){
+        name = n;
+        columns = NULL;
+        colCount = 0;
+        colCap = 0;
+        nrTabele++;
+    }
+
+    Table(const Table &t){
+        name = t.name;
+        colCount = t.colCount;
+        colCap = t.colCount;
+        if(colCount > 0){
+            columns = new Column[colCount];
+            for(int i = 0; i < colCount; i++){
+                columns[i] = t.columns[i];
+            }
+        }else
+            columns = NULL;
+
+        nrTabele++;
+    }
+
+    Table& operator=(const Table &t){
+        if(this != &t){
+            delete[] columns;
+            name = t.name;
+            colCount = t.colCount;
+            colCap = t.colCap;
+            if(colCount > 0){
+                columns = new Column[colCap];
+                for(int i = 0; i < colCount; i++){
+                    columns[i] = t.columns[i];
+                }
+            }else
+                columns = NULL;
+        }
+
+        return *this;
+    }
+
+    ~Table(){
+        delete[] columns;
+        nrTabele--;
+    }
+
+    string getName() const {
+        return name;
+    } 
+
+    int getColCount() const {
+        return colCount;
+    }
+
+    Column getColumn(int i) const{
+        return columns[i];
+    }
+
+    void addColumn(const Column &c){
+        if(colCount == colCap){
+            int newCap = (colCap == 0 ? 4 : colCap * 2);
+            Column *nc = new Column[newCap];
+        }
+        delete[] columns;
+        columns = nc;
+        colCap = newCap;
+
+        columns[colCount] = c;
+        colCount++;
+    }
+
+    friend ostream& operator<<(ostream &out, const Table &t){
+        out << "TABLE " << t.name << "(" << t.colCount << " columns)\n";
+        for(int i = 0; i < t.colCount; i++){
+            out << " " << t.columns[i] << "\n";
+        }
+        return out;
+    }
 }; //end of class table
+
+int Table::nrTabele = 0;
+
+//we are using it for sqlcommands like create index and drop index
+class Index{
+    string name;
+    string table;
+    string column;
+
+public:
+    Index(){
+        name = "";
+        table = "";
+        column = "";
+    }
+
+    Index(const string &n, const string &t, const string &c){
+        name = n;
+        table = t;
+        column = c;
+    }
+}; //end of index class
+
+// it holds all the tales
+class Database{
+    Table *tables;
+    int tableCount;
+    int tableCap;
+    
+public:
+    Database(){
+        tables = NULL;
+        tableCount = 0;
+        tableCap = 0;
+    }
+
+    ~Database(){
+        delete[] tables;
+    }
+
+    int findTable(const string &name) const{
+        for(int i = 0; i < tableCount; i++){
+            if(equalIgnoreCase(tables[i].getName(), name)) 
+                return i;
+        }
+        retunr -1;
+    }
+
+    bool createTable(const Table &t){
+        if(findTable(t.getName()) >= 0)
+            return false;
+        
+        if(tableCount == tableCap){
+            int newCap == (tableCap == 0 ? 2 : tableCap * 2);
+            Table *nt = new Table[newCap];
+
+            for(int i = 0; i < tableCount; i++){
+                nt[i] = tables[i];
+            }
+
+            delete[] tables;
+            tables = nt;
+            tableCap = newCap;
+        }
+        tables[tableCount] = t;
+        tableCount++;
+
+        return true;
+    }
+
+    Table* gatTable(const string &name){
+        int index = findTable(name);
+
+        if(index < 0)
+            return NULL;
+
+        return &tables[index];
+    }
+}; //end of database class
+
+
 int main(){
     return 0;
 }
