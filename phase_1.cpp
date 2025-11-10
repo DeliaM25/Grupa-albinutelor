@@ -432,11 +432,11 @@ public:
         if(colCount == colCap){
             int newCap = (colCap == 0 ? 4 : colCap * 2);
             Column *nc = new Column[newCap];
-        }
-        delete[] columns;
-        columns = nc;
-        colCap = newCap;
 
+            delete[] columns;
+            columns = nc;
+            colCap = newCap;
+        }
         columns[colCount] = c;
         colCount++;
     }
@@ -494,7 +494,7 @@ public:
             if(equalIgnoreCase(tables[i].getName(), name)) 
                 return i;
         }
-        retunr -1;
+        return -1;
     }
 
     bool createTable(const Table &t){
@@ -502,7 +502,7 @@ public:
             return false;
         
         if(tableCount == tableCap){
-            int newCap == (tableCap == 0 ? 2 : tableCap * 2);
+            int newCap = (tableCap == 0 ? 2 : tableCap * 2);
             Table *nt = new Table[newCap];
 
             for(int i = 0; i < tableCount; i++){
@@ -574,7 +574,7 @@ public:
         if(keywrd1 == "CREATE"){
             if(tb.count > 1){
                 string keywrd2 = makeUpper(tb.items[1].text);
-                if(keywrd2 = "TABLE") {
+                if(keywrd2 == "TABLE") {
                     return SqlCommand(line, CMD_CREATE_TABLE);
                 }
             }
@@ -583,7 +583,7 @@ public:
         return SqlCommand(line, CMD_UNKNOWN);
     }
 
-    CommandResult execut(const SqlCommand &cmd){
+    CommandResult execute(const SqlCommand &cmd){
         if(cmd.getType() == CMD_CREATE_TABLE)
             return execCreateTable(cmd.getText());
 
@@ -607,14 +607,14 @@ private:
         tokenize(line, tb);
         int i = 0;
 
-        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.itms[i].text) == "CREATE")){
+        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "CREATE")){
             return parseError("CREATE expected");
         }
         i++;
 
-        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "TABLE"){
-            retunr parseError("TABLE expected");
-        })
+        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "TABLE")) {
+            return parseError("TABLE expected");
+        }
         i++;
 
         if(tb.items[i].type != TK_WORD){
@@ -701,7 +701,7 @@ int main(){
     string line;
 
     while (true) {
-        if(!getLine(cin, line))
+        if(!getline(cin, line))
             break;
 
         trimNewline(line);
