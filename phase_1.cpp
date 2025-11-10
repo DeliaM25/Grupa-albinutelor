@@ -529,7 +529,193 @@ public:
     }
 }; //end of database class
 
+struct CommandResult{
+    int code;
+    string msg;
+
+    CommandResult(){
+        code = 0;
+        msg = "";
+    }
+};
+
+ColType parseColType(const string &s){
+    string up = makeUpper(s);
+    if(up == "TEXT")
+        return CT_TEXT;
+    
+    if(up == "INTEGER")
+        return CT_INTEGER;
+
+    if(up == "FLOAT")
+        return CT_FLOAT;
+    
+    return CT_UNKNOWN;
+}
+
+class CommandProcessor{
+    Database *db;
+
+public:
+    CommandProcessor(Database *d){
+        db = d;
+    }
+
+    SqlCommand detect(const string &line){
+        TokenBuffer tb;
+        tokenize(line, tb);
+
+        if(tb.count == 0){
+            return SqlCommand(line, CMD_UNKNOWN);
+        }
+
+        string keywrd1 = makeUpper(tb.items[0].text);
+
+        if(keywrd1 == "CREATE"){
+            if(tb.count > 1){
+                string keywrd2 = makeUpper(tb.items[1].text);
+                if(keywrd2 = "TABLE") {
+                    return SqlCommand(line, CMD_CREATE_TABLE);
+                }
+            }
+        }
+
+        return SqlCommand(line, CMD_UNKNOWN);
+    }
+
+    CommandResult execut(const SqlCommand &cmd){
+        if(cmd.getType() == CMD_CREATE_TABLE)
+            return execCreateTable(cmd.getText());
+
+        CommandResult r;
+        r.code = 2;
+        r.msg = "Error: unknown or not implemented yet.";
+        return r;
+    }
+
+private:
+    CommandResult parseError(const string &m){
+        CommandResult r;
+        r.code = 1;
+        r.msg = "Err_Parse" + m;
+        return r;
+    }
+
+    // we implement CREATE TABLE
+    CommandResult execCreateTable(const string &line){
+        TokenBuffer tb;
+        tokenize(line, tb);
+        int i = 0;
+
+        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.itms[i].text) == "CREATE")){
+            return parseError("CREATE expected");
+        }
+        i++;
+
+        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "TABLE"){
+            retunr parseError("TABLE expected");
+        })
+        i++;
+
+        if(tb.items[i].type != TK_WORD){
+            return parseError("Table name expected... ");
+        }
+        string tableName = tb.items[i].text;
+        i++;
+
+        if(tb.items[i].type != TK_LPAREN){
+            return parseError(" '(' expected");
+        }
+        i++;
+
+
+        Table t(tableName);
+        bool hasColumn = false;
+
+        while(tb.items[i].type != TK_RPAREN && tb.items[i].type != TK_END ){
+            if(tb.items[i].type != TK_WORD){
+                return parseError("Columne name expected");
+            }
+            string colName = tb.items[i].text;
+            i++;
+
+            if(tb.items[i].type != TK_WORD){
+                return parseError("Column type expected");
+            }
+
+            ColType ct = parseColType(tb.items[i].text);
+            if(ct == CT_UNKNOWN){
+                return parseError("Invalid column type. Please use INTEGER, FLOAT OR TEXT");
+            }
+            i++;
+
+            int colSize = 0;
+            string defVal = "";
+
+            if(ct == CT_TEXT && colSize <= 0){
+                colSize = 250;
+            }
+
+            if(ct == CT_INTEGER && !defVal.empty() && !isIntLiteral(defVal)){
+                return parseError("Default int invalid");
+            }
+
+            if(ct == CT_FLOAT && !defVal.empty() && !isFloatLiteral(defVal)){
+                return parseError("Default float invalid");
+            }
+
+            Column c(colName, ct, colSize, defVal);
+            t.addColumn(c);
+            hasColumn = true;
+
+            if(tb.items[i].type == TK_COMMA){
+                i++;
+            }else if(tb.items[i].type == TK_RPAREN){
+                break;
+            }else
+                return parseError("',' or ')' expected after column.");
+        }
+
+        if(!hasColumn){
+            return parseError("At least one column required.");
+        }
+
+        if(tb.items[i].type != TK_RPAREN){
+            return parseError("')' expected.");
+        }
+
+        db->createTable(t);
+
+        CommandResult r;
+        r.msg = "Table " + tableName + " created succesfully.";
+        return r;
+    }
+    
+}; //end of CommandProcessor class
+
 
 int main(){
+    Database db;
+    CommandProcessor proc(&db);
+
+    string line;
+
+    while (true) {
+        if(!getLine(cin, line))
+            break;
+
+        trimNewline(line);
+        if(line.size() == 0)
+            continue;
+
+        SqlCommand cmd = proc.detect(line);
+        CommandResult res = proc.execute(cmd);
+
+        if(res.code == 0){
+            cout << "OK: " << res.msg << endl;
+        }else{
+            cout << res.msg << endl;
+        }
+    }
     return 0;
 }

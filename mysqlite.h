@@ -139,9 +139,32 @@ class Database{
 
 public:
     Database();
-    ~Database;
+    ~Database();
 
     int findTable(const string &name) const;
     bool createTable(const Table &t);
     Table* getTable(const string &name);
+};
+
+struct CommandResult{
+    int code;
+    string msg;
+
+    CommandResult();
+};
+
+ColType parseColType(const string &s);
+
+class CommandProcessor{
+    Database *db;
+
+public:
+    CommandProcessor(Database *d);
+
+    SqlCommand detect(const string &line);
+    CommandResult execute(const SqlCommand &cmd);
+
+private:
+    CommandResult parseError(const string &m);
+    CommandResult execCreateTable(const string &line);
 };
