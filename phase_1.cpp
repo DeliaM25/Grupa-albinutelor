@@ -623,11 +623,36 @@ private:
         string tableName = tb.items[i].text;
         i++;
 
+        bool ifNotExists = false;
+        if(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "IF"){
+            i++;
+            if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "NOT")){
+                return parseError("NOT expected after IF");
+            }
+            i++;
+            if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "EXISTTS")){
+                return parseError("EXISTS expected after IF NOT");
+            }
+            i++;
+            ifNotExists = true;
+        }
+
+        if(db->findTable(tableName) >= 0){
+            CommandResult r;
+            if(ifNotExists){
+                r.msg = "Table " + tableName + " alreaduexists (ignored)";
+                return r;
+            }else{
+                r.code = 4;
+                r.msg = "ERR: table " + tableName + " already exists";
+                return r;
+            }
+        }
+
         if(tb.items[i].type != TK_LPAREN){
             return parseError(" '(' expected");
         }
         i++;
-
 
         Table t(tableName);
         bool hasColumn = false;
