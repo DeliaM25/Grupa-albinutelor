@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "run-sqlite",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/phase_1",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "environment": [],
+      "externalConsole": true,
+      "MIMode": "lldb",
+      "preLaunchTask": "build-sqlite"
+    }
+  ]
+}

@@ -222,6 +222,7 @@ void tokenize(const string &line, TokenBuffer &buf){
 enum CommandType{
     CMD_UNKNOWN,
     CMD_CREATE_TABLE,
+    CMD_DROP_TABLE,
 };
 
 class SqlCommand{
@@ -519,7 +520,22 @@ public:
         return true;
     }
 
-    Table* gatTable(const string &name){
+    bool dropTable(const string &name){
+        int index = findTable(name);
+        if(index < 0){
+            return false;
+        }
+
+        for(int i = index; i < tableCount - 1; i++){
+            tables[i] = tables[i + 1];
+        }
+
+        tableCount --;
+
+        return true;
+    }
+
+    Table* getTable(const string &name){
         int index = findTable(name);
 
         if(index < 0)
@@ -580,12 +596,24 @@ public:
             }
         }
 
+        if(keywrd1 == "DROP"){
+            if(tb.count > 1){
+                string keywrd2 = makeUpper(tb.items[1].text);
+                if(keywrd2 == "TABLE"){
+                    return SqlCommand(line, CMD_DROP_TABLE);
+                }
+            }
+        }
+
         return SqlCommand(line, CMD_UNKNOWN);
     }
 
     CommandResult execute(const SqlCommand &cmd){
         if(cmd.getType() == CMD_CREATE_TABLE)
             return execCreateTable(cmd.getText());
+        
+        if(cmd.getType() == CMD_DROP_TABLE)
+            return execDropTable(cmd.getText());
 
         CommandResult r;
         r.code = 2;
@@ -713,6 +741,42 @@ private:
 
         CommandResult r;
         r.msg = "Table " + tableName + " created succesfully.";
+        return r;
+    }
+
+    CommandResult execDropTable(const string &line){
+        TokenBuffer tb;
+        tokenize(line, tb);
+        int i = 0;
+
+        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "DROP")){
+            return parseError("DROP expected");
+        }
+        i++;
+
+        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "TABLE")){
+            return parseError("TABLE expected");
+        }
+        i++;
+
+        if(tb.items[i].type != TK_WORD){
+            return parseError("Table name expected after DROP TABLE");
+        }
+        string tableName = tb.items[i].text;
+        i++;
+
+        bool ok = db->dropTable(tableName);
+
+        if(!ok){
+            CommandResult r;
+            r.code = 3;
+            r.msg = "Table " + tableName + " does not exists";
+            return r;
+        }
+
+        CommandResult r;
+        r.code = 0;
+        r.msg = "Table  " + tableName + "  dropped succesfully.";
         return r;
     }
     
