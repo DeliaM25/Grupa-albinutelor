@@ -1,10 +1,4 @@
-#include <iostream>
-#include <string>
-#include <string.h>
-#include <regex>
-
-using namespace std;
-
+#include "mysqlite.h"
 
 void trimNewline(string &s){
     while(!s.empty() && (s[s.size() -1] == '\n' || s[s.size() -1] == '\r')){
@@ -33,15 +27,15 @@ bool myIsSpace(char c){
 bool myIsDigit(char c){
     return c >= '0' && c <= '9';
 }
- 
+
 // we check if a string is an integer
 bool isIntLiteral(const string &s){
-    if(s.size() == 0) 
+    if(s.size() == 0)
         return false;
-    
+
     int i = 0;
     if(s[0] == '+' || s[0] == '-'){
-        if (s.size() == 1) 
+        if (s.size() == 1)
             return false;
         i = 1;
     }
@@ -91,11 +85,11 @@ int stringToInt(const string &s){
         i = 1;
     }else if(s[0] == '+')
         i = 1;
-    
+
     int val = 0;
     for(i = 0; i < (int)s.size(); i++){
         val = val * 10 + (s[i] - '0');
-    }    
+    }
 
     return val * semn;
 }
@@ -104,45 +98,19 @@ bool equalIgnoreCase(const string &a, const string &b){
     return makeUpper(a) == makeUpper(b);
 }
 
-// we definne the token type
-enum TokenType{
-    TK_WORD, // IF ITS A WORD
-    TK_COMMA, // IF ITS A COMMA ","
-    TK_LPAREN, // IF ITSA LEFT PAREN "("
-    TK_RPAREN, // IF ITS A RIGHT PAREN ")"
-    TK_EQUAL, // IF ITS AN EQUAL
-    TK_STAR, // IF ITS A STAR "*"
-    TK_STRING, //CHECKS IF ITS USING '' OR ""
-    TK_END // END OF THE LINE
-};
 
-// token structure
-struct Token{
-    TokenType type;
-    string text;
-};
+TokenBuffer::TokenBuffer(){
+    count = 0;
+}
 
-// static array
-const int MAX_TOKENS = 256;
+void TokenBuffer::add(TokenType t, const string &txt){
+    if(count >= MAX_TOKENS)
+        return;
+    items[count].type = t;
+    items[count].text = txt;
+    count++;
+}
 
-struct TokenBuffer {
-    Token items[MAX_TOKENS];
-    int count;
-
-    TokenBuffer(){
-        count = 0;
-    }
-
-    void add(TokenType t, const string &txt){
-        if(count >= MAX_TOKENS)
-            return;
-        items[count].type = t;
-        items[count].text = txt;
-        count++;    
-    }
-};
-
-//we use the tokenizer
 void tokenize(const string &line, TokenBuffer &buf){
     buf.count = 0;
     int i = 0;
@@ -151,7 +119,7 @@ void tokenize(const string &line, TokenBuffer &buf){
     while(i < n){
         char c = line[i];
 
-        if(myIsSpace(c)){ //if we have null spaces we move forward
+        if(myIsSpace(c)){ 
             i++;
             continue;
         }
@@ -186,7 +154,6 @@ void tokenize(const string &line, TokenBuffer &buf){
             continue;
         }
 
-        /*TK_STRING*/
         if (c == '"' || c == '\''){
             char q = c;
             i++;
@@ -201,7 +168,7 @@ void tokenize(const string &line, TokenBuffer &buf){
             buf.add(TK_STRING, val);
             continue;
         }
-        /*TK_WORD*/
+
         string word = "";
         while(i < n) {
             char d = line[i];
@@ -216,595 +183,360 @@ void tokenize(const string &line, TokenBuffer &buf){
     }
 
     buf.add(TK_END, "");
+}
 
-}// end of tokenizer
+SqlCommand::SqlCommand(){
+    text = "";
+    type = CMD_UNKNOWN;
+}
 
-enum CommandType{
-    CMD_UNKNOWN,
-    CMD_CREATE_TABLE,
-    CMD_DROP_TABLE,
-};
+SqlCommand::SqlCommand(const string &t, CommandType tp){
+    text = t;
+    type = tp;
+}
 
-class SqlCommand{
-    string text;
-    CommandType type;
+SqlCommand::SqlCommand(const SqlCommand &other){
+    text = other.text;
+    type = other.type;
+}
 
-public:
-    static const int MAX_LEN = 511;
-
-    SqlCommand(){
-        text = "";
-        type = CMD_UNKNOWN;
-    }
-
-    SqlCommand(const string &t, CommandType tp = CMD_UNKNOWN){
-        text = t;
-        type = tp;
-    }
-
-    SqlCommand(const SqlCommand &other){
+SqlCommand& SqlCommand::operator=(const SqlCommand &other){
+    if(this != &other){
         text = other.text;
         type = other.type;
     }
+    return *this;
+}
 
-    SqlCommand& operator =(const SqlCommand &other){
-        if(this != &other){
-            text = other.text;
-            type = other.type;
-        }
-        return *this;
-    }
+string SqlCommand::getText() const{
+    return text;
+}
 
-    string getText() const {
-         return text;
-     }
+CommandType SqlCommand::getType() const{
+    return type;
+}
 
-    CommandType getType() const{
-        return type;
-     } 
+void SqlCommand::setType(CommandType t){
+    type = t;
+}
 
-    void setType(CommandType t){
-        type = t;
-    }
+ostream& operator<<(ostream &out, const SqlCommand &c){
+    out << "[CMD type = " << c.type << "]" << c.text;
+    return out;
+}
 
-    friend ostream& operator<<(ostream &out, const SqlCommand &c){
-        out << "[CMD type = " << c.type << "]" << c.text;
-        return out;
-    }
+Column::Column(){
+    name = "";
+    type = CT_UNKNOWN;
+    size = 0;
+    defVal = "";
+}
 
-}; // end of SqlCommand class
+Column::Column(const string &n, ColType t, int s, const string &dv){
+    name = n;
+    type = t;
+    size = s;
+    defVal = dv;
+}
 
-enum ColType{
-    CT_TEXT,
-    CT_INTEGER,
-    CT_FLOAT,
-    CT_UNKNOWN
-};
+Column::Column(const Column &c){
+    name = c.name;
+    type = c.type;
+    size = c.size;
+    defVal = c.defVal;
+}
 
-class Column{
-public:
-    static const int MAX_NAME = 32;
-
-private:
-    string name;
-    ColType type;
-    int size;
-    string defVal;
-
-public:
-    Column(){
-        name = "";
-        type = CT_UNKNOWN;
-        size = 0;
-        defVal = "";
-    }
-
-    Column(const string &n, ColType t, int s = 0, const string &dv = ""){
-        name = n;
-        type = t;
-        size = s;
-        defVal = dv;
-    }
-
-    Column(const Column &c){
+Column& Column::operator=(const Column &c){
+    if(this != &c){
         name = c.name;
         type = c.type;
         size = c.size;
         defVal = c.defVal;
     }
+    return *this;
+}
 
-    Column& operator=(const Column &c){
-        if(this != &c){
-            name = c.name;
-            type = c.type;
-            size = c.size;
-            defVal = c.defVal;
+string Column::getName() const{
+    return name;
+}
+
+ColType Column::getType() const{
+    return type;
+}
+
+int Column::getSize() const{
+    return size;
+}
+
+string Column::getDefault() const{
+    return defVal;
+}
+
+bool Column::operator==(const Column &other) const{
+    return equalIgnoreCase(name, other.name);
+}
+
+ostream & operator<<(ostream &out, const Column &c){
+    out << c.name << ":";
+    if(c.type == CT_TEXT) out << "TEXT(" << c.size << ")";
+    if(c.type == CT_INTEGER) out << "INTEGER";
+    if(c.type == CT_FLOAT) out << "FLOAT";
+    if(!c.defVal.empty()) out << " Default Value = " << c.defVal;
+
+    return out;
+}
+
+int Table::nrTabele = 0;
+
+Table::Table(){
+    name = "";
+    columns = NULL;
+    colCount = 0;
+    colCap = 0;
+    nrTabele++;
+}
+
+Table::Table(const string &n){
+    name = n;
+    columns = NULL;
+    colCount = 0;
+    colCap = 0;
+    nrTabele++;
+}
+
+Table::Table(const Table &t){
+    name = t.name;
+    colCount = t.colCount;
+    colCap = t.colCount;
+    if(colCount > 0){
+        columns = new Column[colCount];
+        for(int i = 0; i < colCount; i++){
+            columns[i] = t.columns[i];
         }
-        return *this;
-    }
-
-    string getName() const{
-        return name;
-    }
-
-    ColType getType() const {
-        return type;
-    }
-
-    int getSize() const {
-        return size;
-    }
-
-    string getDefault() const {
-        return defVal;
-    }
-
-    bool operator==(const Column &other) const{
-        return equalIgnoreCase(name, other.name);
-    }
-
-    friend ostream & operator<<(ostream &out, const Column &c){
-        out << c.name << ":";
-        if(c.type == CT_TEXT) out << "TEXT(" << c.size << ")";
-        if(c.type == CT_INTEGER) out << "INTEGER";
-        if(c.type == CT_FLOAT) out << "FLOAT";
-        if(!c.defVal.empty()) out << "Default Value = " << c.defVal;
-
-        return out;
-    }
-};// end of Column class
-
-class Table{
-    string name;
-    Column *columns;
-    int colCount;
-    int colCap;
-
-public:
-    static int nrTabele;
-
-    Table(){
-        name = "";
+    }else
         columns = NULL;
-        colCount = 0;
-        colCap = 0;
-        nrTabele++;
-    }
 
-    Table(const string &n){
-        name = n;
-        columns = NULL;
-        colCount = 0;
-        colCap = 0;
-        nrTabele++;
-    }
+    nrTabele++;
+}
 
-    Table(const Table &t){
+Table& Table::operator=(const Table &t){
+    if(this != &t){
+        delete[] columns;
         name = t.name;
         colCount = t.colCount;
-        colCap = t.colCount;
+        colCap = t.colCap;
         if(colCount > 0){
-            columns = new Column[colCount];
+            columns = new Column[colCap];
             for(int i = 0; i < colCount; i++){
                 columns[i] = t.columns[i];
             }
         }else
             columns = NULL;
-
-        nrTabele++;
     }
 
-    Table& operator=(const Table &t){
-        if(this != &t){
-            delete[] columns;
-            name = t.name;
-            colCount = t.colCount;
-            colCap = t.colCap;
-            if(colCount > 0){
-                columns = new Column[colCap];
-                for(int i = 0; i < colCount; i++){
-                    columns[i] = t.columns[i];
-                }
-            }else
-                columns = NULL;
+    return *this;
+}
+
+Table::~Table(){
+    delete[] columns;
+    nrTabele--;
+}
+
+string Table::getName() const{
+    return name;
+}
+
+int Table::getColCount() const{
+    return colCount;
+}
+
+Column Table::getColumn(int i) const{
+    return columns[i];
+}
+
+void Table::addColumn(const Column &c){
+    if(colCount == colCap){
+        int newCap = (colCap == 0 ? 4 : colCap * 2);
+        Column *nc = new Column[newCap];
+
+        for(int i = 0; i < colCount; i++){
+            nc[i] = columns[i];
         }
 
-        return *this;
-    }
-
-    ~Table(){
         delete[] columns;
-        nrTabele--;
+        columns = nc;
+        colCap = newCap;
     }
+    columns[colCount] = c;
+    colCount++;
+}
 
-    string getName() const {
-        return name;
-    } 
-
-    int getColCount() const {
-        return colCount;
+ostream& operator<<(ostream &out, const Table &t){
+    out << "TABLE " << t.name << "(" << t.colCount << " columns)\n";
+    for(int i = 0; i < t.colCount; i++){
+        out << " " << t.columns[i] << "\n";
     }
+    return out;
+}
 
-    Column getColumn(int i) const{
-        return columns[i];
+Index::Index(){
+    name = "";
+    table = "";
+    column = "";
+}
+
+Index::Index(const string &n, const string &t, const string &c){
+    name = n;
+    table = t;
+    column = c;
+}
+
+Database::Database(){
+    tables = NULL;
+    tableCount = 0;
+    tableCap = 0;
+}
+
+Database::~Database(){
+    delete[] tables;
+}
+
+int Database::findTable(const string &name) const{
+    for(int i = 0; i < tableCount; i++){
+        if(equalIgnoreCase(tables[i].getName(), name))
+            return i;
     }
+    return -1;
+}
 
-    void addColumn(const Column &c){
-        if(colCount == colCap){
-            int newCap = (colCap == 0 ? 4 : colCap * 2);
-            Column *nc = new Column[newCap];
+bool Database::createTable(const Table &t){
+    if(findTable(t.getName()) >= 0)
+        return false;
 
-            delete[] columns;
-            columns = nc;
-            colCap = newCap;
-        }
-        columns[colCount] = c;
-        colCount++;
-    }
+    if(tableCount == tableCap){
+        int newCap = (tableCap == 0 ? 2 : tableCap * 2);
+        Table *nt = new Table[newCap];
 
-    friend ostream& operator<<(ostream &out, const Table &t){
-        out << "TABLE " << t.name << "(" << t.colCount << " columns)\n";
-        for(int i = 0; i < t.colCount; i++){
-            out << " " << t.columns[i] << "\n";
-        }
-        return out;
-    }
-}; //end of class table
-
-int Table::nrTabele = 0;
-
-//we are using it for sqlcommands like create index and drop index
-class Index{
-    string name;
-    string table;
-    string column;
-
-public:
-    Index(){
-        name = "";
-        table = "";
-        column = "";
-    }
-
-    Index(const string &n, const string &t, const string &c){
-        name = n;
-        table = t;
-        column = c;
-    }
-}; //end of index class
-
-// it holds all the tales
-class Database{
-    Table *tables;
-    int tableCount;
-    int tableCap;
-    
-public:
-    Database(){
-        tables = NULL;
-        tableCount = 0;
-        tableCap = 0;
-    }
-
-    ~Database(){
-        delete[] tables;
-    }
-
-    int findTable(const string &name) const{
         for(int i = 0; i < tableCount; i++){
-            if(equalIgnoreCase(tables[i].getName(), name)) 
-                return i;
-        }
-        return -1;
-    }
-
-    bool createTable(const Table &t){
-        if(findTable(t.getName()) >= 0)
-            return false;
-        
-        if(tableCount == tableCap){
-            int newCap = (tableCap == 0 ? 2 : tableCap * 2);
-            Table *nt = new Table[newCap];
-
-            for(int i = 0; i < tableCount; i++){
-                nt[i] = tables[i];
-            }
-
-            delete[] tables;
-            tables = nt;
-            tableCap = newCap;
-        }
-        tables[tableCount] = t;
-        tableCount++;
-
-        return true;
-    }
-
-    bool dropTable(const string &name){
-        int index = findTable(name);
-        if(index < 0){
-            return false;
+            nt[i] = tables[i];
         }
 
-        for(int i = index; i < tableCount - 1; i++){
-            tables[i] = tables[i + 1];
-        }
+        delete[] tables;
+        tables = nt;
+        tableCap = newCap;
+    }
+    tables[tableCount] = t;
+    tableCount++;
 
-        tableCount --;
+    return true;
+}
 
-        return true;
+bool Database::dropTable(const string &name){
+    int index = findTable(name);
+    if(index < 0){
+        return false;
     }
 
-    Table* getTable(const string &name){
-        int index = findTable(name);
-
-        if(index < 0)
-            return NULL;
-
-        return &tables[index];
+    for(int i = index; i < tableCount - 1; i++){
+        tables[i] = tables[i + 1];
     }
-}; //end of database class
 
-struct CommandResult{
-    int code;
-    string msg;
+    tableCount --;
 
-    CommandResult(){
-        code = 0;
-        msg = "";
-    }
-};
+    return true;
+}
+
+Table* Database::getTable(const string &name){
+    int index = findTable(name);
+
+    if(index < 0)
+        return NULL;
+
+    return &tables[index];
+}
+
+CommandResult::CommandResult(){
+    code = 0;
+    msg = "";
+}
 
 ColType parseColType(const string &s){
     string up = makeUpper(s);
     if(up == "TEXT")
         return CT_TEXT;
-    
+
     if(up == "INTEGER")
         return CT_INTEGER;
 
     if(up == "FLOAT")
         return CT_FLOAT;
-    
+
     return CT_UNKNOWN;
 }
 
-class CommandProcessor{
-    Database *db;
+CommandProcessor::CommandProcessor(Database *d){
+    db = d;
+}
 
-public:
-    CommandProcessor(Database *d){
-        db = d;
-    }
+SqlCommand CommandProcessor::detect(const string &line){
+    TokenBuffer tb;
+    tokenize(line, tb);
 
-    SqlCommand detect(const string &line){
-        TokenBuffer tb;
-        tokenize(line, tb);
-
-        if(tb.count == 0){
-            return SqlCommand(line, CMD_UNKNOWN);
-        }
-
-        string keywrd1 = makeUpper(tb.items[0].text);
-
-        if(keywrd1 == "CREATE"){
-            if(tb.count > 1){
-                string keywrd2 = makeUpper(tb.items[1].text);
-                if(keywrd2 == "TABLE") {
-                    return SqlCommand(line, CMD_CREATE_TABLE);
-                }
-            }
-        }
-
-        if(keywrd1 == "DROP"){
-            if(tb.count > 1){
-                string keywrd2 = makeUpper(tb.items[1].text);
-                if(keywrd2 == "TABLE"){
-                    return SqlCommand(line, CMD_DROP_TABLE);
-                }
-            }
-        }
-
+    if(tb.count == 0){
         return SqlCommand(line, CMD_UNKNOWN);
     }
 
-    CommandResult execute(const SqlCommand &cmd){
-        if(cmd.getType() == CMD_CREATE_TABLE)
-            return execCreateTable(cmd.getText());
-        
-        if(cmd.getType() == CMD_DROP_TABLE)
-            return execDropTable(cmd.getText());
+    string keywrd1 = makeUpper(tb.items[0].text);
 
-        CommandResult r;
-        r.code = 2;
-        r.msg = "Error: unknown or not implemented yet.";
-        return r;
+    if(keywrd1 == "CREATE"){
+        if(tb.count > 1){
+            string keywrd2 = makeUpper(tb.items[1].text);
+            if(keywrd2 == "TABLE") {
+                return SqlCommand(line, CMD_CREATE_TABLE);
+            }
+        }
     }
 
-private:
-    CommandResult parseError(const string &m){
-        CommandResult r;
-        r.code = 1;
-        r.msg = "Err_Parse" + m;
-        return r;
+    if(keywrd1 == "DROP"){
+        if(tb.count > 1){
+            string keywrd2 = makeUpper(tb.items[1].text);
+            if(keywrd2 == "TABLE"){
+                return SqlCommand(line, CMD_DROP_TABLE);
+            }
+        }
     }
 
-    // we implement CREATE TABLE
-    CommandResult execCreateTable(const string &line){
-        TokenBuffer tb;
-        tokenize(line, tb);
-        int i = 0;
-
-        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "CREATE")){
-            return parseError("CREATE expected");
-        }
-        i++;
-
-        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "TABLE")) {
-            return parseError("TABLE expected");
-        }
-        i++;
-
-        if(tb.items[i].type != TK_WORD){
-            return parseError("Table name expected... ");
-        }
-        string tableName = tb.items[i].text;
-        i++;
-
-        bool ifNotExists = false;
-        if(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "IF"){
-            i++;
-            if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "NOT")){
-                return parseError("NOT expected after IF");
-            }
-            i++;
-            if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "EXISTTS")){
-                return parseError("EXISTS expected after IF NOT");
-            }
-            i++;
-            ifNotExists = true;
-        }
-
-        if(db->findTable(tableName) >= 0){
-            CommandResult r;
-            if(ifNotExists){
-                r.msg = "Table " + tableName + " alreaduexists (ignored)";
-                return r;
-            }else{
-                r.code = 4;
-                r.msg = "ERR: table " + tableName + " already exists";
-                return r;
+    if(keywrd1 == "DISPLAY"){
+        if(tb.count > 1){
+            string keywrd2 = makeUpper(tb.items[1].text);
+            if(keywrd2 == "TABLE"){
+                return SqlCommand(line, CMD_DISPLAY_TABLE);
             }
         }
-
-        if(tb.items[i].type != TK_LPAREN){
-            return parseError(" '(' expected");
-        }
-        i++;
-
-        Table t(tableName);
-        bool hasColumn = false;
-
-        while(tb.items[i].type != TK_RPAREN && tb.items[i].type != TK_END ){
-            if(tb.items[i].type != TK_WORD){
-                return parseError("Columne name expected");
-            }
-            string colName = tb.items[i].text;
-            i++;
-
-            if(tb.items[i].type != TK_WORD){
-                return parseError("Column type expected");
-            }
-
-            ColType ct = parseColType(tb.items[i].text);
-            if(ct == CT_UNKNOWN){
-                return parseError("Invalid column type. Please use INTEGER, FLOAT OR TEXT");
-            }
-            i++;
-
-            int colSize = 0;
-            string defVal = "";
-
-            if(ct == CT_TEXT && colSize <= 0){
-                colSize = 250;
-            }
-
-            if(ct == CT_INTEGER && !defVal.empty() && !isIntLiteral(defVal)){
-                return parseError("Default int invalid");
-            }
-
-            if(ct == CT_FLOAT && !defVal.empty() && !isFloatLiteral(defVal)){
-                return parseError("Default float invalid");
-            }
-
-            Column c(colName, ct, colSize, defVal);
-            t.addColumn(c);
-            hasColumn = true;
-
-            if(tb.items[i].type == TK_COMMA){
-                i++;
-            }else if(tb.items[i].type == TK_RPAREN){
-                break;
-            }else
-                return parseError("',' or ')' expected after column.");
-        }
-
-        if(!hasColumn){
-            return parseError("At least one column required.");
-        }
-
-        if(tb.items[i].type != TK_RPAREN){
-            return parseError("')' expected.");
-        }
-
-        db->createTable(t);
-
-        CommandResult r;
-        r.msg = "Table " + tableName + " created succesfully.";
-        return r;
     }
 
-    CommandResult execDropTable(const string &line){
-        TokenBuffer tb;
-        tokenize(line, tb);
-        int i = 0;
+    return SqlCommand(line, CMD_UNKNOWN);
+}
 
-        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "DROP")){
-            return parseError("DROP expected");
-        }
-        i++;
+CommandResult CommandProcessor::execute(const SqlCommand &cmd){
+    if(cmd.getType() == CMD_CREATE_TABLE)
+        return execCreateTable(cmd.getText());
 
-        if(!(tb.items[i].type == TK_WORD && makeUpper(tb.items[i].text) == "TABLE")){
-            return parseError("TABLE expected");
-        }
-        i++;
+    if(cmd.getType() == CMD_DROP_TABLE)
+        return execDropTable(cmd.getText());
 
-        if(tb.items[i].type != TK_WORD){
-            return parseError("Table name expected after DROP TABLE");
-        }
-        string tableName = tb.items[i].text;
-        i++;
+    if(cmd.getType() == CMD_DISPLAY_TABLE)
+        return execDisplayTable(cmd.getText());
 
-        bool ok = db->dropTable(tableName);
+    CommandResult r;
+    r.code = 2;
+    r.msg = "Error: unknown or not implemented yet.";
+    return r;
+}
 
-        if(!ok){
-            CommandResult r;
-            r.code = 3;
-            r.msg = "Table " + tableName + " does not exists";
-            return r;
-        }
-
-        CommandResult r;
-        r.code = 0;
-        r.msg = "Table  " + tableName + "  dropped succesfully.";
-        return r;
-    }
-    
-}; //end of CommandProcessor class
-
-
-int main(){
-    Database db;
-    CommandProcessor proc(&db);
-
-    string line;
-
-    while (true) {
-        if(!getline(cin, line))
-            break;
-
-        trimNewline(line);
-        if(line.size() == 0)
-            continue;
-
-        SqlCommand cmd = proc.detect(line);
-        CommandResult res = proc.execute(cmd);
-
-        if(res.code == 0){
-            cout << "OK: " << res.msg << endl;
-        }else{
-            cout << res.msg << endl;
-        }
-    }
-    return 0;
+CommandResult CommandProcessor::parseError(const string &m){
+    CommandResult r;
+    r.code = 1;
+    r.msg = "Err_Parse " + m;
+    return r;
 }

@@ -12,13 +12,12 @@ bool myIsSpace(char c);
 bool myIsDigit(char c);
 bool isIntLiteral(const string &s);
 bool isFloatLiteral(const string &s);
-int stringToInt(const string &s);
+int  stringToInt(const string &s);
 bool equalIgnoreCase(const string &a, const string &b);
-
 
 enum TokenType{
     TK_WORD,
-    TK_COMA,
+    TK_COMMA,
     TK_LPAREN,
     TK_RPAREN,
     TK_EQUAL,
@@ -37,17 +36,18 @@ const int MAX_TOKENS = 256;
 struct TokenBuffer{
     Token items[MAX_TOKENS];
     int count;
-    
+
     TokenBuffer();
     void add(TokenType t, const string &txt);
 };
 
 void tokenize(const string &line, TokenBuffer &buf);
 
-
 enum CommandType{
     CMD_UNKNOWN,
-    CMD_CREATE_TABLE
+    CMD_CREATE_TABLE,
+    CMD_DROP_TABLE, 
+    CMD_DISPLAY_TABLE
 };
 
 enum ColType{
@@ -63,11 +63,15 @@ class SqlCommand{
 
 public:
     static const int MAX_LEN = 511;
-    
+
     SqlCommand();
     SqlCommand(const string &t, CommandType tp = CMD_UNKNOWN);
     SqlCommand(const SqlCommand &other);
     SqlCommand& operator=(const SqlCommand &other);
+
+    string getText() const;
+    CommandType getType() const;
+    void setType(CommandType t);
 
     friend ostream& operator<<(ostream &out, const SqlCommand &c);
 };
@@ -80,7 +84,7 @@ private:
     string name;
     ColType type;
     int size;
-    string defValue;
+    string defVal;
 
 public:
     Column();
@@ -88,10 +92,10 @@ public:
     Column(const Column &c);
     Column& operator=(const Column &c);
 
-    string getName() const;
+    string  getName() const;
     ColType getType() const;
-    int getSize() const;
-    string getDefault() const;
+    int     getSize() const;
+    string  getDefault() const;
 
     bool operator==(const Column &other) const;
 
@@ -114,7 +118,7 @@ public:
     ~Table();
 
     string getName() const;
-    int getColCount() const;
+    int    getColCount() const;
     Column getColumn(int i) const;
 
     void addColumn(const Column &c);
@@ -141,8 +145,9 @@ public:
     Database();
     ~Database();
 
-    int findTable(const string &name) const;
+    int  findTable(const string &name) const;
     bool createTable(const Table &t);
+    bool dropTable(const string &name); 
     Table* getTable(const string &name);
 };
 
@@ -161,10 +166,12 @@ class CommandProcessor{
 public:
     CommandProcessor(Database *d);
 
-    SqlCommand detect(const string &line);
-    CommandResult execute(const SqlCommand &cmd);
+    SqlCommand     detect(const string &line);
+    CommandResult  execute(const SqlCommand &cmd);
 
 private:
     CommandResult parseError(const string &m);
     CommandResult execCreateTable(const string &line);
+    CommandResult execDropTable(const string &line);
+    CommandResult execDisplayTable(const string &line);
 };
